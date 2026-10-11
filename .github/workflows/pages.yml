@@ -1,0 +1,43 @@
+name: Publish standalone Operations Chamber
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '12,27,42,57 * * * *'
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+concurrency:
+  group: operations-chamber-pages
+  cancel-in-progress: false
+jobs:
+  deploy:
+    if: vars.OPS_PUBLICATION_APPROVED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Check out public observations
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          repository: smansfield635-create/smansfield635-create.github.io
+          ref: operations-chamber-observations
+          persist-credentials: false
+          path: observations
+      - name: Package only fixed display files
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/chamber-site"
+          for file in index.html dashboard.mjs data.json .nojekyll; do
+            test -f "observations/$file"
+            cp "observations/$file" "$RUNNER_TEMP/chamber-site/$file"
+          done
+      - uses: actions/configure-pages@v5
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: ${{ runner.temp }}/chamber-site
+      - name: Deploy standalone dashboard
+        id: deployment
+        uses: actions/deploy-pages@v4
