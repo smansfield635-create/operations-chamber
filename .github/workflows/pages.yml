@@ -1,4 +1,4 @@
-name: Publish restricted Operations Chamber notice
+name: Publish public-safe Operations Chamber
 on:
   workflow_dispatch:
   push:
@@ -6,6 +6,8 @@ on:
     paths:
       - .github/workflows/pages.yml
       - index.html
+      - dashboard.mjs
+      - data.json
 permissions:
   contents: read
   pages: write
@@ -14,32 +16,48 @@ concurrency:
   group: operations-chamber-pages
   cancel-in-progress: false
 jobs:
-  deploy-restricted-notice:
+  deploy-public-safe-dashboard:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment:
       name: github-pages
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
-      - name: Check out own restricted notice
+      - name: Check out existing host
         uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
           persist-credentials: false
-      - name: Stage inert notice only
+      - name: Verify exact public-safe release boundary
         shell: bash
         run: |
           set -euo pipefail
-          test -s index.html
-          grep -q 'DGB_STANDALONE_OWNER_RESTRICTED_NOTICE_V1' index.html
-          if grep -Eiq '<script|<form|<input|<button|data\.json|dashboard\.mjs|operations-chamber-observations' index.html; then exit 1; fi
-          mkdir -p "$RUNNER_TEMP/chamber-notice"
-          cp index.html "$RUNNER_TEMP/chamber-notice/index.html"
-          touch "$RUNNER_TEMP/chamber-notice/.nojekyll"
-          test "$(find "$RUNNER_TEMP/chamber-notice" -maxdepth 1 -type f | wc -l)" -eq 2
+          test -s index.html && test -s dashboard.mjs && test -s data.json
+          node --check dashboard.mjs
+          node <<'NODE'
+          const fs = require('fs');
+          const d = JSON.parse(fs.readFileSync('data.json','utf8'));
+          const h = fs.readFileSync('index.html','utf8');
+          const j = fs.readFileSync('dashboard.mjs','utf8');
+          const keys = obj => Object.keys(obj).sort().join('|');
+          const expected = ['schema','observedAt','coverage','repositories','projects','instruments','study','commandsEnabled','rollingStudySummary'].sort().join('|');
+          if(d.schema !== 'DGB_OPERATIONS_CHAMBER_DASHBOARD_DATA_v1' || d.commandsEnabled !== false || d.coverage !== 'PARTIAL' || keys(d) !== expected) throw Error('PRIVATE_DATA_GUARD');
+          if(d.repositories.length || d.projects.length || d.instruments.records.length || d.study.status !== 'UNAVAILABLE') throw Error('PRIVATE_RECORD_EXPOSURE');
+          const s = d.rollingStudySummary;
+          if(s.schema !== 'DGB_CHAMBER_PUBLIC_SAFE_AGGREGATE_v1' || keys(s.metrics) !== ['classified','unresolved','reviews','auditFlags'].sort().join('|')) throw Error('AGGREGATE_SCHEMA');
+          if(!Object.values(s.metrics).every(Number.isSafeInteger) || !Number.isFinite(Date.parse(s.savedThrough)) || !Number.isFinite(Date.parse(s.capturedAt))) throw Error('AGGREGATE_INVALID');
+          if(!h.includes('data-target="home-view"') || !h.includes('data-target="evidence-view"') || (h.match(/class="space-portal /g)||[]).length !== 4) throw Error('FOUR_SPACE_INVALID');
+          if(!h.includes('connect-src') || !j.includes("fetchImpl('./data.json'")) throw Error('LOCAL_ORIGIN_GUARD');
+          if(/PRIVATE_GITHUB_TOKEN|privateSavedSnapshotData|\/smansfield635-create\/geodiametrics1\//.test(h+j)) throw Error('PRIVATE_REFERENCE_PRESENT');
+          console.log('PUBLIC_SAFE_FOUR_SPACE_PASS', s.metrics.classified, s.savedThrough);
+          NODE
+          mkdir -p "$RUNNER_TEMP/chamber-site"
+          cp index.html dashboard.mjs data.json "$RUNNER_TEMP/chamber-site/"
+          touch "$RUNNER_TEMP/chamber-site/.nojekyll"
+          test "$(find "$RUNNER_TEMP/chamber-site" -maxdepth 1 -type f | wc -l)" -eq 4
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
-          path: ${{ runner.temp }}/chamber-notice
-      - name: Deploy restricted notice
+          path: ${{ runner.temp }}/chamber-site
+      - name: Deploy public-safe dashboard
         id: deployment
         uses: actions/deploy-pages@v4
