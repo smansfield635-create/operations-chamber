@@ -171,11 +171,70 @@ function renderProjectTiles(projects,query='',area='all'){
 const TOOL_ZONES=[{name:'Start & control',symbol:'◇',why:'Check whether work can begin.',items:[0,1]},{name:'Build & continue',symbol:'↝',why:'Construct work and preserve progress.',items:[5,2]},{name:'Verify & understand',symbol:'◎',why:'Inspect evidence, failures and tool status.',items:['epistemic',3,4]}];
 function renderToolSpaces(){return TOOL_ZONES.map(z=>`<section class="tool-zone"><div class="zone-top"><span aria-hidden="true">${z.symbol}</span><div><h3>${z.name}</h3><p>${z.why}</p></div></div><div class="tool-items">${z.items.map(i=>{const c=i==='epistemic'?{name:'Epistemic Control Plane',question:'What does the evidence allow us to claim?'}:CAPABILITIES[i];return `<button class="tool-tile" data-tool="${i}"><strong>${esc(c.name)}</strong><span>${esc(c.question)}</span><small>Inspect instrument ↗</small></button>`;}).join('')}</div></section>`).join('');}
 
+// Public-safe attention evidence. These four retained exceptions refer only to public PRs.
+const AUDIT_CASES=Object.freeze([
+ {number:5702,rank:1,subject:'Oversized archive cleanup',finding:'GitHub PR file listing is limited to 3,000 paths for a change removing 61,825 duplicate files.',evidence:'Independent exact-tree and 61,825-file inventory verification is recorded as passing. The API limitation remains an input-audit qualification.',action:'Review the independent acceptance receipt; do not infer file loss or repeat the giant PR listing.'},
+ {number:3919,rank:2,subject:'Changed-file metadata contradiction',finding:'The PR summary reports zero changed files; its merge commit identifies 52 paths.',evidence:'Merge-commit file list corroborates 52 changed paths. This does not establish a current product failure.',action:'Reconcile the classification evidence against exact merge-commit paths.'},
+ {number:3771,rank:3,subject:'Changed-file metadata contradiction',finding:'The PR summary reports zero changed files; its merge commit identifies 17 paths.',evidence:'Merge-commit file list corroborates 17 changed paths.',action:'Reconcile through the existing input-audit method without reclassifying the completed study.'},
+ {number:3827,rank:4,subject:'Changed-file metadata contradiction',finding:'The PR summary reports zero changed files; its merge commit identifies 17 paths.',evidence:'Merge-commit file list corroborates 17 changed paths.',action:'Reconcile through the existing input-audit method without reclassifying the completed study.'}
+]);
+function renderAuditCases(recordedCount){
+ if(!Number.isSafeInteger(recordedCount))return '<p>Audit count unavailable; no current claim is made.</p>';
+ if(recordedCount!==AUDIT_CASES.length)return '<p class="warning">The saved audit count differs from the four historically identified exceptions. Reconcile their identities before treating the list as current.</p>';
+ return AUDIT_CASES.map(c=>'<article class="run-card" style="margin:12px 0"><h3>PR #'+c.number+' · '+esc(c.subject)+'</h3><p>'+esc(c.finding)+'</p><p class="note">'+esc(c.evidence)+'</p><p><strong>Next review:</strong> '+esc(c.action)+'</p><a href="https://github.com/smansfield635-create/smansfield635-create.github.io/pull/'+c.number+'" target="_blank" rel="noopener noreferrer">Inspect public PR evidence →</a></article>').join('');
+}
+const PUBLIC_RUN_TARGETS=Object.freeze([
+ {repo:'operations-chamber',label:'Operations Chamber publication'},
+ {repo:'smansfield635-create.github.io',label:'Public website workflows'}
+]);
+function runURL(url,repo) {
+ try {const u=new URL(url);return u.protocol==='https:'&&u.hostname==='github.com'&&!u.username&&!u.password&&u.pathname.startsWith('/smansfield635-create/'+repo+'/actions/runs/')&&/^\/smansfield635-create\/[^/]+\/actions\/runs\/[0-9]+$/.test(u.pathname)?u.href:null;}catch{return null;}
+}
+async function fetchPublicRunReadings(fetchImpl){
+ return Promise.all(PUBLIC_RUN_TARGETS.map(async source=>{
+  const endpoint='https://api.github.com/repos/smansfield635-create/'+source.repo+'/actions/runs?per_page=1';
+  try{
+   const response=await fetchImpl(endpoint,{headers:{Accept:'application/vnd.github+json'},credentials:'omit',cache:'no-store',redirect:'error',signal:AbortSignal.timeout(12000)});
+   if(!response.ok)throw Error('PUBLIC_API_HTTP_'+response.status);
+   const data=await response.json();
+   if(!Array.isArray(data.workflow_runs))throw Error('PUBLIC_API_SCHEMA');
+   const run=data.workflow_runs[0];
+   if(!run)return {label:source.label,status:'NO_PUBLIC_RUN',checkedAt:new Date().toISOString()};
+   const url=runURL(run.html_url,source.repo);
+   if(!url||!Number.isFinite(Date.parse(run.created_at)))throw Error('PUBLIC_RUN_IDENTITY');
+   const status=['completed','queued','in_progress','requested','waiting','pending'].includes(run.status)?run.status:'unknown';
+   const conclusion=run.conclusion==='success'?'success':run.conclusion===null?null:['failure','timed_out','cancelled','skipped','action_required','neutral'].includes(run.conclusion)?run.conclusion:'unknown';
+   return {label:source.label,status,conclusion,createdAt:run.created_at,name:String(run.name||'Public workflow').slice(0,90),url,checkedAt:new Date().toISOString()};
+  }catch(e){return {label:source.label,status:'UNAVAILABLE',reason:String(e.message||'NETWORK_UNAVAILABLE').slice(0,100),checkedAt:new Date().toISOString()};}
+ }));
+}
+function renderPublicRunReadings(readings){
+ return readings.map(r=>{
+  if(r.status==='UNAVAILABLE')return '<article class="run-card"><h3>'+esc(r.label)+'</h3><p>Public run metadata unavailable ('+esc(r.reason)+'). No operational result can be inferred.</p></article>';
+  if(r.status==='NO_PUBLIC_RUN')return '<article class="run-card"><h3>'+esc(r.label)+'</h3><p>No public workflow found in this API response.</p></article>';
+  const outcome=r.status!=='completed'?'Public run '+esc(r.status):r.conclusion==='success'?'Latest public run completed successfully':r.conclusion==='failure'?'Latest public run failed':'Latest public run '+esc(r.conclusion??'unknown');
+  return '<article class="run-card"><h3>'+esc(r.label)+'</h3><p>'+esc(outcome)+' · '+esc(r.name)+'</p><p class="note">Run created '+esc(new Date(r.createdAt).toLocaleString())+'. One latest public run only; private workflows not covered.</p><a href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer">Open GitHub run →</a></article>';
+ }).join('');
+}
+
 function mount(document,fetchImpl=fetch){
  const $=id=>document.getElementById(id);let current=null,area='all';
  const spatial=mountSpatial(document);
  const drawProjects=()=>{if(current){$('projects').innerHTML=renderProjectTiles(current.projects,$('search').value,area);$('search-count').textContent=$('projects').querySelectorAll('[data-project]').length+' projects shown';}};
  $('capabilities').innerHTML=renderToolSpaces();
+ const publicRuns=$('public-runs-status'),checkPublicRuns=$('check-public-runs');
+ let publicBusy=false;
+ async function refreshPublicRuns(){
+  if(publicBusy)return;
+  publicBusy=true;checkPublicRuns.disabled=true;publicRuns.textContent='Checking latest public GitHub runs…';
+  try{const readings=await fetchPublicRunReadings(fetchImpl);publicRuns.innerHTML='<p class="note">Checked '+esc(new Date().toLocaleString())+'. Public-only GitHub API; separate from the older private capture.</p>'+renderPublicRunReadings(readings);}
+  catch{publicRuns.textContent='Public run check failed; no live result established.';}
+  finally{publicBusy=false;checkPublicRuns.disabled=false;}
+ }
+ checkPublicRuns.addEventListener('click',()=>void refreshPublicRuns());
+ void refreshPublicRuns();
+ const publicRunTimer=setInterval(()=>{if(document.visibilityState!=='hidden')void refreshPublicRuns();},600000);
+
  function showDialog(id){const dialog=$(id);if(!dialog.open)dialog.showModal();}
  function navigate(target){for(const b of document.querySelectorAll('.nav [data-target]')){if(b.dataset.target===target)b.setAttribute('aria-current','page');else b.removeAttribute('aria-current');}for(const panel of document.querySelectorAll('[data-view]'))panel.hidden=panel.id!==target;document.querySelector('#'+target+' h2')?.focus({preventScroll:true});document.defaultView.scrollTo({top:0});if(target==='system-view')spatial?.render();}
  document.addEventListener('click',e=>{
@@ -192,7 +251,7 @@ function mount(document,fetchImpl=fetch){
   $('refresh').disabled=s.busy;$('refresh').textContent=s.busy?'Checking…':'Check for updates';
   $('status').textContent=s.busy?'Loading saved capture…':s.error?'Update unavailable · showing the last captured evidence':s.data?s.freshness==='STALE'?'Saved capture · older than 20 minutes':'Latest saved capture loaded':'Waiting for source data';
   $('status').classList.toggle('warning',s.error||s.freshness==='STALE');
-  if(!s.data)return;$('timestamp').textContent='Captured '+new Date(s.data.observedAt).toLocaleString()+'. Checks for new captures every minute.';
+  if(!s.data)return;$('timestamp').textContent='Captured '+new Date(s.data.observedAt).toLocaleString()+'. Rechecks saved site data every minute; an updated private capture is not guaranteed.';
   if(current===s.data)return;current=s.data;
   $('project-count').textContent=current.projects.length;$('active-count').textContent=current.projects.reduce((n,p)=>n+p.activeCount,0);$('instrument-count').textContent=current.instruments.records.length;
   const noRuns=current.instruments.records.filter(i=>!i.latestRun).length, needsReview=current.instruments.records.filter(i=>instrumentReading(i).tone==='warning').length;
@@ -203,8 +262,15 @@ function mount(document,fetchImpl=fetch){
   $('current-instruments').innerHTML=renderInstruments(active);$('historical-instruments').innerHTML=renderInstruments(historic);$('historical-count').textContent=historic.length;
 
   // The study is a saved classification checkpoint, not a live productivity or health score.
+
+  const freshnessAge=Date.now()-Date.parse(current.observedAt);
+  const captureOld=Number.isFinite(freshnessAge)&&freshnessAge>20*60*1000;
+  const captureMessage='Last private-source-derived project/instrument snapshot: '+new Date(current.observedAt).toLocaleString()+'. '+(captureOld?'STALE: current private operational health cannot be inferred.':'Recent timestamp only; running status still requires separate evidence.');
+  $('attention-home-state').textContent=captureOld?'Priority 1: private operational capture is stale. Verify public runs independently; they do not establish private health.':captureMessage;
+  $('attention-capture').textContent=captureMessage+' This snapshot does not certify six instrument states or current productivity.';
   const summary=current.rollingStudySummary;
   const valid=summary?.schema==='DGB_CHAMBER_PUBLIC_SAFE_AGGREGATE_v1' && Number.isFinite(Date.parse(summary.savedThrough)) && Number.isFinite(Date.parse(summary.capturedAt)) && summary.metrics && ['classified','unresolved','reviews','auditFlags'].every(k=>Number.isSafeInteger(summary.metrics[k])&&summary.metrics[k]>=0&&summary.metrics[k]<=10000000) && summary.metrics.unresolved<=summary.metrics.classified && summary.metrics.reviews<=summary.metrics.classified && summary.metrics.auditFlags<=summary.metrics.classified;
+  $('attention-audits').innerHTML=renderAuditCases(valid?summary.metrics.auditFlags:null);
   const box=$('rolling-summary');
   if(box) box.innerHTML=valid?`<div class="statrow" style="grid-template-columns:repeat(2,minmax(0,1fr))"><div class="stat"><div class="metric" style="font-size:30px">${summary.metrics.classified.toLocaleString()}</div><small>Classified merged PRs</small></div><div class="stat"><div class="metric" style="font-size:30px">${summary.metrics.unresolved}</div><small>Unresolved classifications</small></div></div><p class="sub">Saved through ${esc(new Date(summary.savedThrough).toLocaleString())}. ${summary.metrics.reviews} source reviews · ${summary.metrics.auditFlags} audit flags.</p><p class="sub">Automated classifications with preserved corrections. Not a live productivity or operational-health score.</p>`:'<p class="sub">No verified current continuing-study checkpoint is available. No historical checkpoint is substituted.</p>';
   const continuing=$('study');
@@ -212,7 +278,7 @@ function mount(document,fetchImpl=fetch){
  }});
  $('search').addEventListener('input',drawProjects);$('refresh').addEventListener('click',()=>controller.refresh());
  void controller.refresh();const timer=setInterval(()=>controller.refresh(),60000),clock=setInterval(()=>controller.tick(),10000);
- return ()=>{clearInterval(timer);clearInterval(clock);};
+ return ()=>{clearInterval(timer);clearInterval(clock);clearInterval(publicRunTimer);};
 }
 if(typeof document!=='undefined')mount(document);
 
