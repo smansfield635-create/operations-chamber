@@ -1,0 +1,26 @@
+{
+  "schema": "DGB_OPERATIONS_CHAMBER_DASHBOARD_DATA_v1",
+  "observedAt": "2026-10-12T00:36:19.827Z",
+  "coverage": "PARTIAL",
+  "repositories": [],
+  "projects": [],
+  "instruments": {
+    "status": "UNAVAILABLE",
+    "records": []
+  },
+  "study": {
+    "status": "UNAVAILABLE"
+  },
+  "commandsEnabled": false,
+  "rollingStudySummary": {
+    "schema": "DGB_CHAMBER_PUBLIC_SAFE_AGGREGATE_v1",
+    "savedThrough": "2026-10-15T03:55:25Z",
+    "capturedAt": "2026-10-15T03:55:25Z",
+    "metrics": {
+      "classified": 1725,
+      "unresolved": 0,
+      "reviews": 390,
+      "auditFlags": 4
+    }
+  }
+}
