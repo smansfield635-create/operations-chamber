@@ -1,6 +1,10 @@
 name: Publish standalone Operations Chamber
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/pages.yml
   schedule:
     - cron: '12,27,42,57 * * * *'
 permissions:
