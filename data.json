@@ -624,17 +624,7 @@
     ]
   },
   "study": {
-    "status": "AVAILABLE",
-    "cutoff": "2026-08-25T18:25:55Z",
-    "totals": {
-      "PARAMOUNT": 17,
-      "STANDARD": 682,
-      "SUPPORT": 207,
-      "materialUnits": 699,
-      "total": 906
-    },
-    "source": null,
-    "currentProductivity": "NOT_MEASURED"
+    "status": "UNAVAILABLE"
   },
   "commandsEnabled": false,
   "rollingStudySummary": {

@@ -41,7 +41,7 @@ jobs:
           const keys = obj => Object.keys(obj).sort().join('|');
           const expected = ['schema','observedAt','coverage','repositories','projects','instruments','study','commandsEnabled','rollingStudySummary'].sort().join('|');
           if(d.schema !== 'DGB_OPERATIONS_CHAMBER_DASHBOARD_DATA_v1' || d.commandsEnabled !== false || d.coverage !== 'PARTIAL' || keys(d) !== expected) throw Error('PRIVATE_DATA_GUARD');
-          if(d.repositories.length !== 2 || d.projects.length !== 46 || d.instruments.records.length !== 6 || d.study.status !== 'AVAILABLE') throw Error('CATALOG_CARDINALITY_INVALID');
+          if(d.repositories.length !== 2 || d.projects.length !== 46 || d.instruments.records.length !== 6 || d.study.status !== 'UNAVAILABLE') throw Error('CATALOG_CARDINALITY_INVALID');
           const aliases = new Set(['catalog/private-study','catalog/public-estate']);
           if(!d.repositories.every(r => aliases.has(r.name) && r.status === 'HISTORICAL_CAPTURE' && r.generation === null)) throw Error('REPOSITORY_ALIAS_INVALID');
           for(const p of d.projects){
@@ -53,7 +53,10 @@ jobs:
             if(!/^[a-z0-9-]{5,100}\.ya?ml$/.test(i.name) || i.name.includes('/') || i.currentHeadRunId !== null) throw Error('INSTRUMENT_PATH_OR_SOURCE_ID_INVALID');
             if(i.latestRun && (i.latestRun.url !== null || !['completed','in_progress','queued'].includes(i.latestRun.status))) throw Error('PRIVATE_RUN_REFERENCE_PRESENT');
           }
-          if(d.study.source !== null || !Number.isFinite(Date.parse(d.study.cutoff)) || ['total','materialUnits','PARAMOUNT','STANDARD','SUPPORT'].some(k => !Number.isSafeInteger(d.study.totals[k]))) throw Error('HISTORICAL_STUDY_INVALID');
+          if(keys(d.study) !== 'status' || d.study.status !== 'UNAVAILABLE') throw Error('HISTORICAL_STUDY_PRESENT');
+          if(/August 2026|August 25, 2026|Archived study · through|Historical production study|An earlier preserved checkpoint/.test(h+j)) throw Error('LEGACY_ARCHIVE_PRESENTATION');
+          if(!h.includes('Continuing research') || !h.includes('Current cumulative classification') || !j.includes('continuing.innerHTML=valid?') || !j.includes('Preserved source reviews')) throw Error('CURRENT_ARCHIVE_BINDING_MISSING');
+          if(/2026-08-25T18:25:55Z|"total": 906|"materialUnits": 699/.test(JSON.stringify(d))) throw Error('LEGACY_STUDY_DATA_PRESENT');
           if(/https?:\/\/|github\.com|\.github\/|privateSavedSnapshotData|PRIVATE_GITHUB_TOKEN|receiptSha256|archiveSha256|\/smansfield635-create\/geodiametrics1\//i.test(JSON.stringify(d))) throw Error('PRIVATE_REFERENCE_DISCLOSURE');
           const s = d.rollingStudySummary;
           if(s.schema !== 'DGB_CHAMBER_PUBLIC_SAFE_AGGREGATE_v1' || keys(s.metrics) !== ['classified','unresolved','reviews','auditFlags'].sort().join('|')) throw Error('AGGREGATE_SCHEMA');
