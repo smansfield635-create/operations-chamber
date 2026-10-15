@@ -181,7 +181,7 @@ const AUDIT_CASES=Object.freeze([
 function renderAuditCases(recordedCount){
  if(!Number.isSafeInteger(recordedCount))return '<p>Audit count unavailable; no current claim is made.</p>';
  if(recordedCount!==AUDIT_CASES.length)return '<p class="warning">The saved audit count differs from the four historically identified exceptions. Reconcile their identities before treating the list as current.</p>';
- return AUDIT_CASES.map(c=>'<article class="run-card" style="margin:12px 0"><h3>PR #'+c.number+' · '+esc(c.subject)+'</h3><p>'+esc(c.finding)+'</p><p class="note">'+esc(c.evidence)+'</p><p><strong>Next review:</strong> '+esc(c.action)+'</p><a href="https://github.com/smansfield635-create/smansfield635-create.github.io/pull/'+c.number+'" target="_blank" rel="noopener noreferrer">Inspect public PR evidence →</a></article>').join('');
+ return AUDIT_CASES.map((c,i)=>'<details class="audit-card"'+(i===0?' open':'')+'><summary>PR #'+c.number+' · '+esc(c.subject)+'</summary><div class="audit-body"><p>'+esc(c.finding)+'</p><p class="note">'+esc(c.evidence)+'</p><p><strong>Next review:</strong> '+esc(c.action)+'</p><a href="https://github.com/smansfield635-create/smansfield635-create.github.io/pull/'+c.number+'" target="_blank" rel="noopener noreferrer">Inspect public PR evidence →</a></div></details>').join('');
 }
 const PUBLIC_RUN_TARGETS=Object.freeze([
  {repo:'operations-chamber',label:'Operations Chamber publication'},
@@ -212,7 +212,7 @@ function renderPublicRunReadings(readings){
  return readings.map(r=>{
   if(r.status==='UNAVAILABLE')return '<article class="run-card"><h3>'+esc(r.label)+'</h3><p>Public run metadata unavailable ('+esc(r.reason)+'). No operational result can be inferred.</p></article>';
   if(r.status==='NO_PUBLIC_RUN')return '<article class="run-card"><h3>'+esc(r.label)+'</h3><p>No public workflow found in this API response.</p></article>';
-  const outcome=r.status!=='completed'?'Public run '+esc(r.status):r.conclusion==='success'?'Latest public run completed successfully':r.conclusion==='failure'?'Latest public run failed':'Latest public run '+esc(r.conclusion??'unknown');
+  const outcome=r.status!=='completed'?'Public run '+esc(r.status):r.conclusion==='success'?'Latest observed run succeeded':r.conclusion==='failure'?'Latest observed run failed (workflow-specific; not a website-health verdict)':'Latest public run '+esc(r.conclusion??'unknown');
   return '<article class="run-card"><h3>'+esc(r.label)+'</h3><p>'+esc(outcome)+' · '+esc(r.name)+'</p><p class="note">Run created '+esc(new Date(r.createdAt).toLocaleString())+'. One latest public run only; private workflows not covered.</p><a href="'+esc(r.url)+'" target="_blank" rel="noopener noreferrer">Open GitHub run →</a></article>';
  }).join('');
 }
