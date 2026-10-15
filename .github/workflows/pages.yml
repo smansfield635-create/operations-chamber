@@ -41,7 +41,20 @@ jobs:
           const keys = obj => Object.keys(obj).sort().join('|');
           const expected = ['schema','observedAt','coverage','repositories','projects','instruments','study','commandsEnabled','rollingStudySummary'].sort().join('|');
           if(d.schema !== 'DGB_OPERATIONS_CHAMBER_DASHBOARD_DATA_v1' || d.commandsEnabled !== false || d.coverage !== 'PARTIAL' || keys(d) !== expected) throw Error('PRIVATE_DATA_GUARD');
-          if(d.repositories.length || d.projects.length || d.instruments.records.length || d.study.status !== 'UNAVAILABLE') throw Error('PRIVATE_RECORD_EXPOSURE');
+          if(d.repositories.length !== 2 || d.projects.length !== 46 || d.instruments.records.length !== 6 || d.study.status !== 'AVAILABLE') throw Error('CATALOG_CARDINALITY_INVALID');
+          const aliases = new Set(['catalog/private-study','catalog/public-estate']);
+          if(!d.repositories.every(r => aliases.has(r.name) && r.status === 'HISTORICAL_CAPTURE' && r.generation === null)) throw Error('REPOSITORY_ALIAS_INVALID');
+          for(const p of d.projects){
+            if(!/^[A-Z0-9_]{2,80}$/.test(p.id) || !aliases.has(p.repository) || p.frontier !== 'UNVERIFIED' || p.blockers !== 'UNVERIFIED') throw Error('PROJECT_METADATA_INVALID');
+            if(!Number.isSafeInteger(p.activeCount) || p.activeCount < 0 || !Number.isSafeInteger(p.totalRecorded) || p.totalRecorded < p.activeCount) throw Error('PROJECT_COUNT_INVALID');
+            if(p.operations.length || p.recentOperations.length || p.pullRequests.length || p.workflowRuns.length) throw Error('PRIVATE_OPERATION_DETAILS_PRESENT');
+          }
+          for(const i of d.instruments.records){
+            if(!/^[a-z0-9-]{5,100}\.ya?ml$/.test(i.name) || i.name.includes('/') || i.currentHeadRunId !== null) throw Error('INSTRUMENT_PATH_OR_SOURCE_ID_INVALID');
+            if(i.latestRun && (i.latestRun.url !== null || !['completed','in_progress','queued'].includes(i.latestRun.status))) throw Error('PRIVATE_RUN_REFERENCE_PRESENT');
+          }
+          if(d.study.source !== null || !Number.isFinite(Date.parse(d.study.cutoff)) || ['total','materialUnits','PARAMOUNT','STANDARD','SUPPORT'].some(k => !Number.isSafeInteger(d.study.totals[k]))) throw Error('HISTORICAL_STUDY_INVALID');
+          if(/https?:\/\/|github\.com|\.github\/|privateSavedSnapshotData|PRIVATE_GITHUB_TOKEN|receiptSha256|archiveSha256|\/smansfield635-create\/geodiametrics1\//i.test(JSON.stringify(d))) throw Error('PRIVATE_REFERENCE_DISCLOSURE');
           const s = d.rollingStudySummary;
           if(s.schema !== 'DGB_CHAMBER_PUBLIC_SAFE_AGGREGATE_v1' || keys(s.metrics) !== ['classified','unresolved','reviews','auditFlags'].sort().join('|')) throw Error('AGGREGATE_SCHEMA');
           if(!Object.values(s.metrics).every(Number.isSafeInteger) || !Number.isFinite(Date.parse(s.savedThrough)) || !Number.isFinite(Date.parse(s.capturedAt))) throw Error('AGGREGATE_INVALID');
