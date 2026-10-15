@@ -64,6 +64,13 @@ jobs:
           if(!h.includes('data-target="home-view"') || !h.includes('data-target="evidence-view"') || (h.match(/class="space-portal /g)||[]).length !== 4) throw Error('FOUR_SPACE_INVALID');
           if(!h.includes('connect-src') || !j.includes("fetchImpl('./data.json'")) throw Error('LOCAL_ORIGIN_GUARD');
           if(/PRIVATE_GITHUB_TOKEN|privateSavedSnapshotData|\/smansfield635-create\/geodiametrics1\//.test(h+j)) throw Error('PRIVATE_REFERENCE_PRESENT');
+          if(!h.includes('id="attention-dialog"') || !h.includes('id="attention-audits"') || !h.includes('id="public-runs-status"') || !h.includes('id="attention-capture"')) throw Error('ATTENTION_UI_MISSING');
+          if(!h.includes("connect-src 'self' https://api.github.com")) throw Error('PUBLIC_RUN_CSP_MISSING');
+          if(!j.includes('function fetchPublicRunReadings(fetchImpl)') || !j.includes('function renderAuditCases(recordedCount)') || !j.includes('publicRunTimer') || !j.includes('per_page=1')) throw Error('PUBLIC_RUN_READINGS_INCOMPLETE');
+          if(!j.includes("number:5702") || !j.includes("number:3919") || !j.includes("number:3771") || !j.includes("number:3827")) throw Error('AUDIT_IDENTITIES_MISSING');
+          if(/api.github.com\/repos\/smansfield635-create\/geodiametrics1|PRIVATE_GITHUB_TOKEN|Authorization:\s*Bearer|contents:\s*write/.test(j)) throw Error('PUBLIC_SCRIPT_PRIVATE_ACCESS');
+          if(!j.includes("credentials:'omit'") || !j.includes("redirect:'error'") || !j.includes('600000')) throw Error('BOUNDED_PUBLIC_READ_REQUIRED');
+          if(d.rollingStudySummary.metrics.auditFlags!==4) throw Error('AUDIT_COUNT_IDENTITY_RECONCILIATION_REQUIRED');
           console.log('PUBLIC_SAFE_FOUR_SPACE_PASS', s.metrics.classified, s.savedThrough);
           NODE
           mkdir -p "$RUNNER_TEMP/chamber-site"
